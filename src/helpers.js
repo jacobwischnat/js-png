@@ -17,7 +17,6 @@ module.exports.bufferToArrayBuffer = buffer => {
 }
 
 module.exports.adam7 = (Buffer, buffer, width, height, pixelSize) => {
-    console.log(width, height, pixelSize);
     const expanded = Buffer.alloc(width * height * pixelSize);
     for (let i = 0; i < 7; i += 1) {
         switch (i) {
@@ -25,15 +24,11 @@ module.exports.adam7 = (Buffer, buffer, width, height, pixelSize) => {
                 let x = 0, y = 0;
                 const pixel = buffer.readUInt8(i);
                 expanded.writeUInt8(pixel, x * y);
-                console.log(x, y);
                 x = Math.ceil(width / 2);
-                console.log(x, y);
                 expanded.writeUInt8(pixel, x * y);
                 y = Math.ceil(height / 2);
-                console.log(x, y);
                 expanded.writeUInt8(pixel, x * y);
                 x = 0;
-                console.log(x, y);
                 expanded.writeUInt8(pixel, x * y);
                 break;
         }
@@ -45,7 +40,6 @@ module.exports.adam7 = (Buffer, buffer, width, height, pixelSize) => {
 module.exports.insertAlphaChannel = (data, alpha = 255) => {
     return data.reduce((a, _, i, o) => {
         if (i % 3 === 0) {
-            console.log(i);
             a.push(...o.slice(i, i + 3), alpha);
         }
 
@@ -54,9 +48,9 @@ module.exports.insertAlphaChannel = (data, alpha = 255) => {
 }
 
 module.exports.rectify = value => {
-    const newValue = value % 256;
+    const newValue = value;
 
-    return newValue < 0 ? 0 : newValue;
+    return (newValue < 0 ? 0 : newValue) % 256;
 }
 
 module.exports.paethPredictor = (a, b, c) => {

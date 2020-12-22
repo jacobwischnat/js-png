@@ -4,8 +4,8 @@ import * as constants from './constants';
 
 import pako from 'pako';
 import {Buffer} from 'buffer/';
-// import pngImage from './colors.png';
-import pngImage from './Small_scream.png';
+// import pngImage from './img.png';
+import pngImage from './me.png';
 // import pngImage from './share_twitter.png';
 
 const canvas = document.querySelector('canvas');
@@ -99,8 +99,8 @@ const {pixels, rows: rowTypes} = protocol.parseWithFilter(
 );
 
 const filtered = ['SUB', 'PAETH', 'UP', 'AVG', 'NONE'];
-// const filtered = ['UP', 'NONE', 'PAETH'];
-// const filtered = ['SUB', 'PAETH'];
+// const filtered = ['SUB'];
+// const filtered = ['PAETH'];
 const rows = [];
 
 for (let i = 0; i < pixels.length; i += width * bytesPerPixel) {
@@ -109,15 +109,19 @@ for (let i = 0; i < pixels.length; i += width * bytesPerPixel) {
         data: pixels.slice(i, i + (width * bytesPerPixel))
     });
 }
-console.log(pixels);
 console.log(rowTypes);
-console.log(rows, rows.length);
+
+// .reduce((a, v) => {
+//     if (!a.includes(v)) a.push(v);
+
+//     return a;
+// }, []));
 
 const dat = rows.reduce((a, {type, data}) => {
     if (filtered.includes(type)) {
         a.push(...data);
     } else {
-        a.push(...Array.from({length: width * bytesPerPixel}));
+        a.push(...Array.from({length: width * bytesPerPixel}).fill(255));
     }
 
     return a;
@@ -127,14 +131,12 @@ const dat = rows.reduce((a, {type, data}) => {
 let datAlpha = dat;
 if (png.IHDR.nodes[0].info.bytesPerPixel === 3) {
     datAlpha = helpers.insertAlphaChannel(dat);
-    console.log(datAlpha);
 }
 canvas.width = width;
 canvas.height = height;
 // canvas.style.width = `${png.IHDR.nodes[0].info.width}px`;
 // canvas.style.height = `${png.IHDR.nodes[0].info.height}px`;
 
-console.log('drawing', datAlpha);
 const imageData = new ImageData(
     new Uint8ClampedArray(datAlpha),
     width,
