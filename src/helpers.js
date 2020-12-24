@@ -48,9 +48,7 @@ module.exports.insertAlphaChannel = (data, alpha = 255) => {
 }
 
 module.exports.rectify = value => {
-    const newValue = value;
-
-    return (newValue < 0 ? 0 : newValue) % 256;
+    return value < 0 ? 0 : value & 0xFF;
 }
 
 module.exports.paethPredictor = (a, b, c) => {
