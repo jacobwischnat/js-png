@@ -51,7 +51,7 @@ module.exports.rectify = value => {
     return value < 0 ? 0 : value & 0xFF;
 }
 
-module.exports.paethPredictor = (a, b, c) => {
+module.exports.paethPredictor = (a, b, c, curValue) => {
     const p = a + b - c;
     const pa = Math.abs(p - a);
     const pb = Math.abs(p - b);
@@ -62,4 +62,21 @@ module.exports.paethPredictor = (a, b, c) => {
     else if (pb <= pc) value = b;
 
     return value;
+    // let p, pa, pb, pc;
+    // p = b - c;
+    // pc = a - c;
+
+    // pa = Math.abs(p);
+    // pb = Math.abs(pc);
+    // pc = Math.abs(p + pc);
+
+    // let value = a;
+
+    // if (pb < pa) {
+    //     pa = pb;
+    //     value = b;
+    // }
+    // if (pc < pa) value = c;
+
+    // return curValue + value;
 }

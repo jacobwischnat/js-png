@@ -27,9 +27,6 @@ export default class PNG {
         while (index < buffer.length) {
             const size = buffer.readUInt32BE(index);
             const type = buffer.slice(index + 4, index + 8).toString();
-            const data = buffer.slice(index + 8, index + 8 + size);
-
-            console.log(type, size, data.length);
 
             if (chunks[type]) {
                 if (this[type]) this[type].addChunk(buffer.slice(index));
@@ -40,12 +37,20 @@ export default class PNG {
 
             index += 12 + size;
         }
-
-        console.log('bregzit');
     }
 
     imageData() {
-        const data = new Uint8ClampedArray(this.IDAT.pixels);
+        let {pixels} = this.IDAT;
+        if (this.IHDR.bytesPerPixel === 3) {
+            pixels = pixels.reduce((a, v, i, o) => {
+                if (i % 3 === 0) {
+                    a.push(...o.slice(i, i + 3), 0xFF);
+                }
+
+                return a;
+            }, []);
+        }
+        const data = new Uint8ClampedArray(pixels);
         return new ImageData(data, this.IHDR.width, this.IHDR.height);
     }
 
@@ -56,13 +61,18 @@ export default class PNG {
     }
 }
 
-import pngBuffer from './img.png';
+import pngBuffer from './me.png';
 
 const png = new PNG();
 png.load(pngBuffer);
 
 const canvas = document.querySelector('canvas');
 const context = canvas.getContext('2d');
+canvas.style.imageRendering = 'pixelated';
+canvas.onclick = ({clientY}) => {
+    console.log(clientY);
+    console.log(png.IDAT.rows.slice(clientY));
+}
 
 canvas.width = png.IHDR.width;
 canvas.height = png.IHDR.height;

@@ -34,16 +34,13 @@ export default class IDAT extends Chunk {
     inflate() {
         try {
             const data = Buffer.concat(this.datas.map(buffer => Buffer.from(buffer)));
-            console.log(data.toString('hex').slice(0, 10));
-            console.dir(pako);
             const inflated = pako.inflate(helpers.bufferToArrayBuffer(data));
-            console.log({inflated});
             if (inflated) {
                 this.data = Buffer.from(inflated);
                 this.decompressed = true;
             }
         } catch (ex) {
-            console.error(ex);
+
         }
     }
 
@@ -126,12 +123,15 @@ export default class IDAT extends Chunk {
                             if (i < this.bytesPerPixel) {
                                 this.pixels.push(helpers.rectify(value + above));
                             } else {
+                                // a = left
+                                // b = above
+                                // c = adjacent
                                 const leftIndex = this.pixels.length - this.bytesPerPixel;
                                 const left = this.pixels[leftIndex];
                                 const adjacentIndex = aboveIndex - this.bytesPerPixel;
                                 const adjacent = this.pixels[adjacentIndex];
 
-                                this.pixels.push(helpers.rectify(value + helpers.paethPredictor(left, above, adjacent)));
+                                this.pixels.push(value + helpers.paethPredictor(left, above, adjacent, value));
                             }
                         }
                         index += this.lineSize;

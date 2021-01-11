@@ -8,8 +8,6 @@ export default class Chunk extends EventEmitter {
         super();
         this.png = png;
         this.datas = [];
-
-        console.dir(this);
     }
 
     parseChunk(buffer) {

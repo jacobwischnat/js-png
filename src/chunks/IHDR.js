@@ -7,10 +7,7 @@ export default class IHDR extends Chunk {
     }
 
     parse(buffer) {
-        console.log(this.chunkName, 'parse');
         this.parseChunk(buffer);
-
-        console.log(this.data);
 
         let index = 0;
 
