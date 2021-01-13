@@ -24,11 +24,15 @@ export default class IDAT extends Chunk {
     }
 
     get lineSize() {
-        return this.png.IHDR.width * this.png.IHDR.bytesPerPixel;
+        return this.png.IHDR.width * (this.hasPalette ? 1 : this.png.IHDR.bytesPerPixel);
     }
 
     get bytesPerPixel() {
         return this.png.IHDR.bytesPerPixel;
+    }
+
+    get hasPalette() {
+        return this.png.IHDR.colorType.type === 'PALETTE';
     }
 
     inflate() {
@@ -61,7 +65,25 @@ export default class IDAT extends Chunk {
                     case constants.FILTERS.NONE:
                         {
                         const sourceLine = this.data.slice(index + 1, index + 1 + this.lineSize);
-                        const line = sourceLine.map((_, i) => sourceLine.readUInt8(i));
+                        const line = Array.from(sourceLine).flatMap(idx => {
+                            if (this.hasPalette) {
+                                const {bytes} = this.png.PLTE.palette[idx];
+
+                                const data = [];
+                                for (let b = 0; b < bytes.length; b += 1) {
+                                    data.push(bytes.readUInt8(b));
+                                }
+
+                                if (this.png?.tRNS?.palette) {
+                                    if (isNaN(this.png.tRNS.palette[idx])) data.push(0xFF);
+                                    else data.push(this.png.tRNS.palette[idx]);
+                                }
+
+                                return data;
+                            }
+
+                            return [idx];
+                        });
                         this.pixels.push(...line);
                         index += this.lineSize;
                         }
@@ -69,17 +91,21 @@ export default class IDAT extends Chunk {
 
                     case constants.FILTERS.SUB:
                         {
-                        const line = [];
-                        for (let i = 0; i < this.lineSize; i += 1) {
-                            const diffIndex = index + 1 + i;
-                            const value = this.data.readUInt8(diffIndex);
-                            const lastPixel = line.length - this.bytesPerPixel;
-                            if (line.length < this.bytesPerPixel) line.push(value);
-                            else {
-                                const refPixel = line[lastPixel];
-                                line.push(helpers.rectify(value + refPixel));
-                            }
-                        }
+                        const data = Array.from(this.data
+                            .slice(index + 1, index + 1 + (this.png.IHDR.width * this.png.IHDR.bytesPerPixel)));
+
+                        const line = data
+                            .reduce((a, v, i) => {
+                                if (i < this.png.IHDR.bytesPerPixel) {
+                                    a.push(v);
+                                } else {
+                                    const val = v + a[i - this.png.IHDR.bytesPerPixel];
+                                    a.push(val & 0xFF);
+                                }
+
+                                return a;
+                            }, []);
+
                         this.pixels.push(...line);
                         index += this.lineSize;
                         }
@@ -90,7 +116,6 @@ export default class IDAT extends Chunk {
                         for (let i = 0; i < this.lineSize; i += 1) {
                             const valueIndex = index + 1 + i;
                             const prior = this.pixels[this.pixels.length - this.lineSize];
-                            // const prior = this.data.readUInt8(index - (this.lineSize - i))
                             const value = this.data.readUInt8(valueIndex);
                             this.pixels.push((value + prior) % 256);
                         }
@@ -105,9 +130,14 @@ export default class IDAT extends Chunk {
                             const value = this.data.readUInt8(offset);
                             const aboveIndex = this.pixels.length - this.lineSize;
                             const above = this.pixels[aboveIndex];
-                            const leftIndex = this.pixels.length - this.bytesPerPixel;
-                            const left = (i - this.bytesPerPixel) > 0 ? this.pixels[leftIndex] : 0;
-                            this.pixels.push(helpers.rectify(value + Math.floor((above + left) / 2)));
+
+                            let left = 0;
+                            if (i >= this.png.IHDR.bytesPerPixel) {
+                                const leftIndex = this.pixels.length - (this.bytesPerPixel);
+                                left = this.pixels[leftIndex];
+                            }
+
+                            this.pixels.push((value + ((above + left) / 2)) & 0xFF);
                         }
                         index += this.lineSize;
                         }
@@ -115,28 +145,41 @@ export default class IDAT extends Chunk {
 
                     case constants.FILTERS.PAETH:
                         {
+                        const line = [];
+
                         for (let i = 0; i < this.lineSize; i += 1) {
                             const offset = index + 1 + i;
                             const value = this.data.readUInt8(offset);
-                            const aboveIndex = this.pixels.length - this.lineSize;
-                            const above = this.pixels[aboveIndex];
+
                             if (i < this.bytesPerPixel) {
+                                const aboveIndex = this.pixels.length - this.lineSize;
+                                const above = this.pixels[aboveIndex];
                                 this.pixels.push(helpers.rectify(value + above));
+                                line.push(helpers.rectify(value + above));
                             } else {
                                 // a = left
                                 // b = above
                                 // c = adjacent
-                                const leftIndex = this.pixels.length - this.bytesPerPixel;
+                                const aboveIndex = this.pixels.length - this.lineSize;
+                                const above = this.pixels[aboveIndex];
+                                const leftIndex = this.pixels.length - (this.bytesPerPixel);
                                 const left = this.pixels[leftIndex];
-                                const adjacentIndex = aboveIndex - this.bytesPerPixel;
+                                const adjacentIndex = aboveIndex - (this.bytesPerPixel);
                                 const adjacent = this.pixels[adjacentIndex];
 
-                                this.pixels.push(value + helpers.paethPredictor(left, above, adjacent, value));
+                                const paethResult = helpers.paethPredictor(left, above, adjacent, value);
+                                const rectifyResult = helpers.rectify(paethResult);
+
+                                this.pixels.push(rectifyResult);
+                                line.push(rectifyResult);
                             }
                         }
                         index += this.lineSize;
                         }
                         continue;
+
+                    default:
+                        throw new Error(`Unknown filter ${mode} @ ${index}`);
                 }
             }
 
@@ -156,10 +199,7 @@ export default class IDAT extends Chunk {
         this.parseChunk(buffer);
 
         this.compressed = this.png.IHDR.compressionMethod === 0;
-        if (this.compressed) this.inflate();
-
         this.filtered = this.png.IHDR.filterMethod === 0;
-        if (this.filtered) this.unfilter();
 
         return this;
     }

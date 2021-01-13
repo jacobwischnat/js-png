@@ -18,10 +18,14 @@ export default class IHDR extends Chunk {
         this.compressionMethod = this.data.readUInt8(index); index += 1;
         this.filterMethod = this.data.readUInt8(index); index += 1;
         this.interlaceMethod = this.data.readUInt8(index); index += 1;
-        this.bytesPerPixel = constants.PIXEL_SIZE[this.colorType][this.bitDepth];
+        this.bytesPerPixel = (constants.PIXEL_SIZE[this.colorType] || {})[this.bitDepth];
         this.colorType = constants.COLOR_TYPE[this.colorType];
 
         return this;
+    }
+
+    get interlaced() {
+        return this.interlaceMethod === 1;
     }
 
     static parse(png, buffer) {

@@ -48,35 +48,25 @@ module.exports.insertAlphaChannel = (data, alpha = 255) => {
 }
 
 module.exports.rectify = value => {
-    return value < 0 ? 0 : value & 0xFF;
+    return value & 0xFF;
 }
 
-module.exports.paethPredictor = (a, b, c, curValue) => {
-    const p = a + b - c;
-    const pa = Math.abs(p - a);
-    const pb = Math.abs(p - b);
-    const pc = Math.abs(p - c);
+module.exports.paethPredictor = (a, b, c, curValue = 0) => {
+    let p, pa, pb, pc;
+    p = b - c;
+    pc = a - c;
 
-    let value = c;
-    if (pa <= pb && pa <= pc) value = a;
-    else if (pb <= pc) value = b;
+    pa = Math.abs(p);
+    pb = Math.abs(pc);
+    pc = Math.abs(p + pc);
 
-    return value;
-    // let p, pa, pb, pc;
-    // p = b - c;
-    // pc = a - c;
+    let value = a;
 
-    // pa = Math.abs(p);
-    // pb = Math.abs(pc);
-    // pc = Math.abs(p + pc);
+    if (pb < pa) {
+        pa = pb;
+        value = b;
+    }
+    if (pc < pa) value = c;
 
-    // let value = a;
-
-    // if (pb < pa) {
-    //     pa = pb;
-    //     value = b;
-    // }
-    // if (pc < pa) value = c;
-
-    // return curValue + value;
+    return value + curValue;
 }
